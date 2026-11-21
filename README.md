@@ -1,4 +1,4 @@
-# ClassRide — Travel Together
+# ClassRide — Carpool Planner
 
 **ClassRide** is a student carpool platform designed to help students share rides and travel together. It allows users to create trips, discover available rides, and join trips with fellow students.
 
