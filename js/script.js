@@ -233,18 +233,19 @@ registerForm.addEventListener("submit", async function(event) {
         ""
     );
 
-    const { data, error } = await supabase.auth.signUp({
+const { data, error } = await supabase.auth.signUp({
+    email: email,
+    password: password,
 
-        email: email,
-        password: password,
+    options: {
+        data: {
+            full_name: fullName
+        },
 
-        options: {
-            data: {
-                full_name: fullName
-            }
-        }
+        emailRedirectTo: "https://classride.netlify.app/"
+    }
+});
 
-    });
 
     if (error) {
 
