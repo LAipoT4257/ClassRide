@@ -114,88 +114,42 @@
 <!-- Logged-in Account and Trip Management -->
 <section id="account-section" class="account-section" hidden>
 
-    <div class="account-header">
+    <div class="app-topbar">
         <div>
-            <h2>Welcome to ClassRide!</h2>
-            <p id="account-name"></p>
-            <p id="account-email"></p>
+            <h2>Welcome to ClassRide</h2>
+            <p>Where are you heading today?</p>
         </div>
 
-        <button id="logout-button" class="secondary-button">
-            Log Out
-        </button>
+        <span class="app-brand">ClassRide</span>
     </div>
 
-    <!-- Create Trip -->
-    <section class="trip-form-card">
+    <!-- Main Navigation -->
+    <nav class="app-navigation" aria-label="Main navigation">
 
-        <h2>Create a Trip</h2>
-        <p class="form-description">
-            Share your journey with other students.
-        </p>
+        <button class="nav-button active" data-view="available-view">
+            <span>⌕</span>
+            Available Trips
+        </button>
 
-        <form id="trip-form">
+        <button class="nav-button" data-view="create-view">
+            <span>＋</span>
+            Create Trip
+        </button>
 
-            <label for="starting-location">Starting Location</label>
-            <input
-                type="text"
-                id="starting-location"
-                placeholder="Example: Bambang"
-                required
-            >
+        <button class="nav-button" data-view="my-trips-view">
+            <span>▣</span>
+            My Trips
+        </button>
 
-            <label for="destination">Destination</label>
-            <input
-                type="text"
-                id="destination"
-                placeholder="Example: Bayombong"
-                required
-            >
+        <button class="nav-button" data-view="profile-view">
+            <span>♙</span>
+            Profile
+        </button>
 
-            <div class="form-row">
+    </nav>
 
-                <div>
-                    <label for="departure-date">Departure Date</label>
-                    <input
-                        type="date"
-                        id="departure-date"
-                        required
-                    >
-                </div>
-
-                <div>
-                    <label for="departure-time">Departure Time</label>
-                    <input
-                        type="time"
-                        id="departure-time"
-                        required
-                    >
-                </div>
-
-            </div>
-
-            <label for="total-seats">Total Available Seats</label>
-            <input
-                type="number"
-                id="total-seats"
-                min="1"
-                max="20"
-                placeholder="Example: 4"
-                required
-            >
-
-            <button type="submit" class="primary-button">
-                Publish Trip
-            </button>
-
-        </form>
-
-        <p id="trip-message" class="message"></p>
-
-    </section>
-
-    <!-- Trip List -->
-    <section class="trip-list-section">
+    <!-- Available Trips -->
+    <section id="available-view" class="app-view">
 
         <div class="section-heading">
             <div>
@@ -212,6 +166,110 @@
 
         <div id="trip-list" class="trip-list">
             <p>Loading trips...</p>
+        </div>
+
+    </section>
+
+    <!-- Create Trip -->
+    <section id="create-view" class="app-view" hidden>
+
+        <div class="trip-form-card">
+
+            <h2>Create a Trip</h2>
+            <p class="form-description">
+                Share your journey with other students.
+            </p>
+
+            <form id="trip-form">
+
+                <label for="starting-location">Starting Location</label>
+                <input
+                    type="text"
+                    id="starting-location"
+                    placeholder="Example: Bambang"
+                    required
+                >
+
+                <label for="destination">Destination</label>
+                <input
+                    type="text"
+                    id="destination"
+                    placeholder="Example: Bayombong"
+                    required
+                >
+
+                <div class="form-row">
+                    <div>
+                        <label for="departure-date">Departure Date</label>
+                        <input type="date" id="departure-date" required>
+                    </div>
+
+                    <div>
+                        <label for="departure-time">Departure Time</label>
+                        <input type="time" id="departure-time" required>
+                    </div>
+                </div>
+
+                <label for="total-seats">Total Available Seats</label>
+                <input
+                    type="number"
+                    id="total-seats"
+                    min="1"
+                    max="20"
+                    placeholder="Example: 4"
+                    required
+                >
+
+                <button type="submit" class="primary-button">
+                    Publish Trip
+                </button>
+
+            </form>
+
+            <p id="trip-message" class="message"></p>
+
+        </div>
+
+    </section>
+
+    <!-- My Trips -->
+    <section id="my-trips-view" class="app-view" hidden>
+
+        <div>
+            <h2>My Trips</h2>
+            <p class="form-description">
+                Manage trips you created and rides you joined.
+            </p>
+        </div>
+
+        <div id="my-trip-list" class="trip-list">
+            <p>Loading your trips...</p>
+        </div>
+
+    </section>
+
+    <!-- Profile -->
+    <section id="profile-view" class="app-view" hidden>
+
+        <div class="profile-card">
+            <div class="profile-avatar">CR</div>
+
+            <h2>My Profile</h2>
+            <p class="form-description">
+                Your ClassRide account information.
+            </p>
+
+            <div class="profile-information">
+                <span>Full Name</span>
+                <p id="account-name"></p>
+
+                <span>Email Address</span>
+                <p id="account-email"></p>
+            </div>
+
+            <button id="logout-button" class="logout-button">
+                Log Out
+            </button>
         </div>
 
     </section>
