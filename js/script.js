@@ -1,7 +1,10 @@
 
 import { supabase } from "./supabase.js";
 
-// Get HTML elements
+// ==========================================
+// 1. GET HTML ELEMENTS
+// ==========================================
+
 const authSection = document.getElementById("auth-section");
 const accountSection = document.getElementById("account-section");
 
@@ -15,15 +18,39 @@ const loginMessage = document.getElementById("login-message");
 const accountName = document.getElementById("account-name");
 const accountEmail = document.getElementById("account-email");
 
+const tripForm = document.getElementById("trip-form");
+const tripMessage = document.getElementById("trip-message");
+const tripList = document.getElementById("trip-list");
+const refreshButton = document.getElementById("refresh-trips");
 
-// Display messages
+const departureDateInput = document.getElementById("departure-date");
+
+
+// ==========================================
+// 2. HELPER FUNCTIONS
+// ==========================================
+
 function showMessage(element, message, type) {
     element.textContent = message;
     element.className = "message " + type;
 }
 
+function getLocalDate() {
+    const now = new Date();
+    const offset = now.getTimezoneOffset();
+    return new Date(now.getTime() - offset * 60000)
+        .toISOString()
+        .split("T")[0];
+}
 
-// Display the current account
+// Prevent selecting a date in the past.
+departureDateInput.min = getLocalDate();
+
+
+// ==========================================
+// 3. DISPLAY ACCOUNT
+// ==========================================
+
 async function displayAccount(user) {
 
     authSection.hidden = true;
@@ -40,14 +67,18 @@ async function displayAccount(user) {
     if (error) {
         accountName.textContent = "Profile information unavailable.";
         console.error("Profile error:", error.message);
-        return;
+    } else {
+        accountName.textContent = "Name: " + data.full_name;
     }
 
-    accountName.textContent = "Name: " + data.full_name;
+    await loadTrips();
 }
 
 
-// Check if a user is already logged in
+// ==========================================
+// 4. LOAD CURRENT SESSION
+// ==========================================
+
 async function checkSession() {
 
     const { data, error } = await supabase.auth.getSession();
@@ -66,7 +97,10 @@ async function checkSession() {
 }
 
 
-// Register a new account
+// ==========================================
+// 5. REGISTER ACCOUNT
+// ==========================================
+
 registerForm.addEventListener("submit", async function(event) {
 
     event.preventDefault();
@@ -100,23 +134,25 @@ registerForm.addEventListener("submit", async function(event) {
         return;
     }
 
+    registerForm.reset();
+
     if (data.session) {
-        registerForm.reset();
         await displayAccount(data.user);
     } else {
         showMessage(
             registerMessage,
-            "Account created! Please check your email to confirm your account before logging in.",
+            "Account created! Check your email to confirm your account before logging in.",
             "success"
         );
-
-        registerForm.reset();
     }
 
 });
 
 
-// Log in an existing account
+// ==========================================
+// 6. LOGIN
+// ==========================================
+
 loginForm.addEventListener("submit", async function(event) {
 
     event.preventDefault();
@@ -148,7 +184,10 @@ loginForm.addEventListener("submit", async function(event) {
 });
 
 
-// Log out the current account
+// ==========================================
+// 7. LOGOUT
+// ==========================================
+
 logoutButton.addEventListener("click", async function() {
 
     const { error } = await supabase.auth.signOut();
@@ -164,17 +203,223 @@ logoutButton.addEventListener("click", async function() {
     loginForm.reset();
     registerForm.reset();
 
-    showMessage(loginMessage, "You have logged out successfully.", "success");
+    showMessage(
+        loginMessage,
+        "You have logged out successfully.",
+        "success"
+    );
 
 });
 
 
-// Listen for authentication changes
-supabase.auth.onAuthStateChange(async function(event, session) {
+// ==========================================
+// 8. CREATE A TRIP
+// ==========================================
 
-    if (session) {
-        await displayAccount(session.user);
-    } else {
+tripForm.addEventListener("submit", async function(event) {
+
+    event.preventDefault();
+
+    const { data: userData, error: userError } =
+        await supabase.auth.getUser();
+
+    if (userError || !userData.user) {
+        showMessage(
+            tripMessage,
+            "Please log in before creating a trip.",
+            "error"
+        );
+        return;
+    }
+
+    const startingLocation = document
+        .getElementById("starting-location").value.trim();
+
+    const destination = document
+        .getElementById("destination").value.trim();
+
+    const departureDate = departureDateInput.value;
+
+    const departureTime = document
+        .getElementById("departure-time").value;
+
+    const totalSeats = Number(
+        document.getElementById("total-seats").value
+    );
+
+    if (!startingLocation || !destination ||
+        !departureDate || !departureTime) {
+
+        showMessage(
+            tripMessage,
+            "Please complete all trip information.",
+            "error"
+        );
+        return;
+    }
+
+    if (startingLocation.toLowerCase() === destination.toLowerCase()) {
+        showMessage(
+            tripMessage,
+            "Starting location and destination must be different.",
+            "error"
+        );
+        return;
+    }
+
+    if (departureDate < getLocalDate()) {
+        showMessage(
+            tripMessage,
+            "Please choose today or a future date.",
+            "error"
+        );
+        return;
+    }
+
+    if (!Number.isInteger(totalSeats) ||
+        totalSeats < 1 || totalSeats > 20) {
+
+        showMessage(
+            tripMessage,
+            "Enter a seat quantity between 1 and 20.",
+            "error"
+        );
+        return;
+    }
+
+    showMessage(tripMessage, "Publishing your trip...", "");
+
+    const { error } = await supabase
+        .from("trips")
+        .insert({
+            driver_id: userData.user.id,
+            starting_location: startingLocation,
+            destination: destination,
+            departure_date: departureDate,
+            departure_time: departureTime,
+            total_seats: totalSeats
+        });
+
+    if (error) {
+        console.error("Create trip error:", error);
+
+        showMessage(
+            tripMessage,
+            "Could not publish trip: " + error.message,
+            "error"
+        );
+        return;
+    }
+
+    tripForm.reset();
+    departureDateInput.min = getLocalDate();
+
+    showMessage(
+        tripMessage,
+        "Your trip was published successfully!",
+        "success"
+    );
+
+    await loadTrips();
+
+});
+
+
+// ==========================================
+// 9. LOAD AVAILABLE TRIPS
+// ==========================================
+
+async function loadTrips() {
+
+    tripList.textContent = "Loading trips...";
+
+    const { data, error } = await supabase
+        .rpc("get_available_trips");
+
+    if (error) {
+        console.error("Load trips error:", error);
+
+        tripList.textContent =
+            "Unable to load trips: " + error.message;
+
+        return;
+    }
+
+    tripList.replaceChildren();
+
+    if (!data || data.length === 0) {
+        const emptyMessage = document.createElement("p");
+
+        emptyMessage.className = "trip-empty";
+        emptyMessage.textContent =
+            "No trips have been published yet. Be the first to create one!";
+
+        tripList.appendChild(emptyMessage);
+        return;
+    }
+
+    data.forEach(function(trip) {
+
+        const card = document.createElement("article");
+        card.className = "trip-card";
+
+        const title = document.createElement("h3");
+        title.textContent =
+            trip.starting_location + " → " + trip.destination;
+
+        const driver = document.createElement("p");
+        driver.textContent = "Driver: " + trip.driver_name;
+
+        const date = document.createElement("p");
+        date.textContent = "Date: " + trip.departure_date;
+
+        const time = document.createElement("p");
+        time.textContent =
+            "Departure: " + trip.departure_time.slice(0, 5);
+
+        const seats = document.createElement("span");
+        seats.className = "trip-seats";
+        seats.textContent =
+            trip.available_seats + " of " +
+            trip.total_seats + " seats available";
+
+        card.appendChild(title);
+        card.appendChild(driver);
+        card.appendChild(date);
+        card.appendChild(time);
+        card.appendChild(seats);
+
+        tripList.appendChild(card);
+
+    });
+
+}
+
+
+// ==========================================
+// 10. REFRESH TRIPS
+// ==========================================
+
+refreshButton.addEventListener("click", loadTrips);
+
+
+// ==========================================
+// 11. AUTHENTICATION STATE CHANGES
+// ==========================================
+
+supabase.auth.onAuthStateChange(function(event, session) {
+
+    if (event === "SIGNED_IN" && session) {
+
+        // Avoid running additional Supabase requests
+        // inside the authentication callback.
+        setTimeout(function() {
+            displayAccount(session.user);
+        }, 0);
+
+    }
+
+    if (event === "SIGNED_OUT") {
         authSection.hidden = false;
         accountSection.hidden = true;
     }
@@ -182,5 +427,8 @@ supabase.auth.onAuthStateChange(async function(event, session) {
 });
 
 
-// Start the application
+// ==========================================
+// 12. START APPLICATION
+// ==========================================
+
 checkSession();
