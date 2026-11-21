@@ -70,6 +70,5 @@ The application provides a simple and convenient way to organize shared journeys
 5. Click **Go Live** to launch the application in your browser.
 6. Register or log in to start using ClassRide.
 ---
-
 ### Lainer G. Malis
 ### BSINTE 2C
