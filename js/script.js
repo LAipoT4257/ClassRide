@@ -25,6 +25,11 @@ const refreshButton = document.getElementById("refresh-trips");
 
 const departureDateInput = document.getElementById("departure-date");
 
+// Create a message element for booking feedback.
+const bookingMessage = document.createElement("p");
+bookingMessage.className = "message";
+tripList.parentElement.insertBefore(bookingMessage, tripList);
+
 
 // ==========================================
 // 2. HELPER FUNCTIONS
@@ -38,6 +43,7 @@ function showMessage(element, message, type) {
 function getLocalDate() {
     const now = new Date();
     const offset = now.getTimezoneOffset();
+
     return new Date(now.getTime() - offset * 60000)
         .toISOString()
         .split("T")[0];
@@ -65,10 +71,13 @@ async function displayAccount(user) {
         .single();
 
     if (error) {
-        accountName.textContent = "Profile information unavailable.";
+        accountName.textContent =
+            "Profile information unavailable.";
+
         console.error("Profile error:", error.message);
     } else {
-        accountName.textContent = "Name: " + data.full_name;
+        accountName.textContent =
+            "Name: " + data.full_name;
     }
 
     await loadTrips();
@@ -81,7 +90,8 @@ async function displayAccount(user) {
 
 async function checkSession() {
 
-    const { data, error } = await supabase.auth.getSession();
+    const { data, error } =
+        await supabase.auth.getSession();
 
     if (error) {
         console.error("Session error:", error.message);
@@ -114,7 +124,11 @@ registerForm.addEventListener("submit", async function(event) {
     const password = document
         .getElementById("register-password").value;
 
-    showMessage(registerMessage, "Creating your account...", "");
+    showMessage(
+        registerMessage,
+        "Creating your account...",
+        ""
+    );
 
     const { data, error } = await supabase.auth.signUp({
 
@@ -165,12 +179,13 @@ loginForm.addEventListener("submit", async function(event) {
 
     showMessage(loginMessage, "Logging in...", "");
 
-    const { data, error } = await supabase.auth.signInWithPassword({
+    const { data, error } =
+        await supabase.auth.signInWithPassword({
 
-        email: email,
-        password: password
+            email: email,
+            password: password
 
-    });
+        });
 
     if (error) {
         showMessage(loginMessage, error.message, "error");
@@ -333,6 +348,21 @@ async function loadTrips() {
 
     tripList.textContent = "Loading trips...";
 
+    showMessage(bookingMessage, "", "");
+
+    // Get the currently logged-in student.
+    const { data: userData, error: userError } =
+        await supabase.auth.getUser();
+
+    if (userError || !userData.user) {
+        tripList.textContent =
+            "Please log in to view available trips.";
+        return;
+    }
+
+    const currentUserId = userData.user.id;
+
+    // Get trips from the database.
     const { data, error } = await supabase
         .rpc("get_available_trips");
 
@@ -348,9 +378,11 @@ async function loadTrips() {
     tripList.replaceChildren();
 
     if (!data || data.length === 0) {
+
         const emptyMessage = document.createElement("p");
 
         emptyMessage.className = "trip-empty";
+
         emptyMessage.textContent =
             "No trips have been published yet. Be the first to create one!";
 
@@ -358,36 +390,128 @@ async function loadTrips() {
         return;
     }
 
+    // Get this student's active bookings.
+    const { data: bookings, error: bookingError } =
+        await supabase
+            .from("bookings")
+            .select("trip_id, status, created_at")
+            .eq("rider_id", currentUserId)
+            .in("status", ["pending", "confirmed"])
+            .order("created_at", { ascending: false });
+
+    if (bookingError) {
+        console.error("Booking lookup error:", bookingError);
+
+        tripList.textContent =
+            "Unable to check your bookings: " +
+            bookingError.message;
+
+        return;
+    }
+
+    // Store active bookings for quick lookup.
+    const bookingMap = new Map();
+
+    bookings.forEach(function(booking) {
+
+        const tripId = String(booking.trip_id);
+
+        if (!bookingMap.has(tripId)) {
+            bookingMap.set(tripId, booking.status);
+        }
+
+    });
+
+    // Display each trip.
     data.forEach(function(trip) {
 
         const card = document.createElement("article");
         card.className = "trip-card";
 
         const title = document.createElement("h3");
+
         title.textContent =
-            trip.starting_location + " → " + trip.destination;
+            trip.starting_location + " → " +
+            trip.destination;
 
         const driver = document.createElement("p");
-        driver.textContent = "Driver: " + trip.driver_name;
+        driver.textContent =
+            "Driver: " + trip.driver_name;
 
         const date = document.createElement("p");
-        date.textContent = "Date: " + trip.departure_date;
+        date.textContent =
+            "Date: " + trip.departure_date;
 
         const time = document.createElement("p");
+
         time.textContent =
-            "Departure: " + trip.departure_time.slice(0, 5);
+            "Departure: " +
+            String(trip.departure_time).slice(0, 5);
 
         const seats = document.createElement("span");
+
         seats.className = "trip-seats";
+
         seats.textContent =
             trip.available_seats + " of " +
             trip.total_seats + " seats available";
+
+        // Create the booking button.
+        const actionButton = document.createElement("button");
+
+        actionButton.type = "button";
+        actionButton.className = "primary-button";
+
+        const tripId = String(trip.id);
+
+        const isDriver =
+            trip.driver_id === currentUserId;
+
+        const bookingStatus = bookingMap.get(tripId);
+
+        const availableSeats =
+            Number(trip.available_seats);
+
+        if (isDriver) {
+
+            actionButton.textContent = "Your Trip";
+            actionButton.disabled = true;
+
+            actionButton.className = "secondary-button";
+
+        } else if (bookingStatus) {
+
+            actionButton.textContent = "Leave Trip";
+
+            actionButton.dataset.action = "leave";
+            actionButton.dataset.tripId = tripId;
+
+            actionButton.className = "secondary-button";
+
+        } else if (availableSeats <= 0) {
+
+            actionButton.textContent = "Trip Full";
+            actionButton.disabled = true;
+
+            actionButton.className = "secondary-button";
+
+        } else {
+
+            actionButton.textContent = "Join Trip";
+
+            actionButton.dataset.action = "join";
+            actionButton.dataset.tripId = tripId;
+
+            actionButton.className = "primary-button";
+
+        }
 
         card.appendChild(title);
         card.appendChild(driver);
         card.appendChild(date);
         card.appendChild(time);
         card.appendChild(seats);
+        card.appendChild(actionButton);
 
         tripList.appendChild(card);
 
@@ -397,22 +521,84 @@ async function loadTrips() {
 
 
 // ==========================================
-// 10. REFRESH TRIPS
+// 10. JOIN AND LEAVE TRIPS
+// ==========================================
+
+tripList.addEventListener("click", async function(event) {
+
+    const button = event.target.closest("button[data-action]");
+
+    if (!button) {
+        return;
+    }
+
+    const action = button.dataset.action;
+    const tripId = button.dataset.tripId;
+
+    if (!action || !tripId) {
+        return;
+    }
+
+    button.disabled = true;
+
+    button.textContent =
+        action === "join" ? "Joining..." : "Leaving...";
+
+    const functionName =
+        action === "join" ? "join_trip" : "leave_trip";
+
+    // Call the appropriate Supabase function.
+    const { data, error } = await supabase.rpc(
+        functionName,
+        {
+            p_trip_id: tripId
+        }
+    );
+
+    if (error) {
+
+        console.error(
+            "Booking action error:",
+            error
+        );
+
+        showMessage(
+            bookingMessage,
+            error.message,
+            "error"
+        );
+
+    } else {
+
+        showMessage(
+            bookingMessage,
+            data || "Booking updated successfully!",
+            "success"
+        );
+
+    }
+
+    // Refresh trip information and seat availability.
+    await loadTrips();
+
+});
+
+
+// ==========================================
+// 11. REFRESH TRIPS
 // ==========================================
 
 refreshButton.addEventListener("click", loadTrips);
 
 
 // ==========================================
-// 11. AUTHENTICATION STATE CHANGES
+// 12. AUTHENTICATION STATE CHANGES
 // ==========================================
 
 supabase.auth.onAuthStateChange(function(event, session) {
 
     if (event === "SIGNED_IN" && session) {
 
-        // Avoid running additional Supabase requests
-        // inside the authentication callback.
         setTimeout(function() {
             displayAccount(session.user);
         }, 0);
@@ -420,15 +606,21 @@ supabase.auth.onAuthStateChange(function(event, session) {
     }
 
     if (event === "SIGNED_OUT") {
+
         authSection.hidden = false;
         accountSection.hidden = true;
+
+        tripList.replaceChildren();
+
+        showMessage(bookingMessage, "", "");
+
     }
 
 });
 
 
 // ==========================================
-// 12. START APPLICATION
+// 13. START APPLICATION
 // ==========================================
 
 checkSession();
