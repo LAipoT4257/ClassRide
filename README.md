@@ -71,5 +71,5 @@ The application provides a simple and convenient way to organize shared journeys
 6. Register or log in to start using ClassRide.
 ---
 
-## Lainer G. Malis
-## BSINTE 2C
+### Lainer G. Malis
+### BSINTE 2C
