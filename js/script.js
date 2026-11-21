@@ -21,8 +21,14 @@ const accountEmail = document.getElementById("account-email");
 const tripForm = document.getElementById("trip-form");
 const tripMessage = document.getElementById("trip-message");
 const tripList = document.getElementById("trip-list");
+const myTripList = document.getElementById("my-trip-list");
 const refreshButton = document.getElementById("refresh-trips");
 
+// Navigation elements
+const navButtons = document.querySelectorAll(".nav-button");
+const appViews = document.querySelectorAll(".app-view");
+
+// Trip form inputs
 const startingLocationInput =
     document.getElementById("starting-location");
 
@@ -41,7 +47,10 @@ const totalSeatsInput =
 // Track whether the user is editing an existing trip.
 let editingTripId = null;
 
-// Create a message element for booking feedback.
+// Prevent duplicate loading requests.
+let isLoadingTrips = false;
+
+// Booking feedback message
 const bookingMessage = document.createElement("p");
 bookingMessage.className = "message";
 
@@ -94,6 +103,7 @@ function resetTripFormMode() {
 
     tripSubmitButton.textContent = "Publish Trip";
 
+    tripSubmitButton.disabled = false;
     cancelEditButton.hidden = true;
 
     showMessage(tripMessage, "", "");
@@ -104,13 +114,48 @@ departureDateInput.min = getLocalDate();
 
 
 // ==========================================
-// 3. DISPLAY ACCOUNT
+// 3. APP NAVIGATION
+// ==========================================
+
+function showView(viewId) {
+
+    appViews.forEach(function(view) {
+        view.hidden = view.id !== viewId;
+    });
+
+    navButtons.forEach(function(button) {
+
+        button.classList.toggle(
+            "active",
+            button.dataset.view === viewId
+        );
+
+    });
+
+}
+
+// Navigation button clicks
+navButtons.forEach(function(button) {
+
+    button.addEventListener("click", function() {
+
+        showView(button.dataset.view);
+
+    });
+
+});
+
+
+// ==========================================
+// 4. DISPLAY ACCOUNT
 // ==========================================
 
 async function displayAccount(user) {
 
     authSection.hidden = true;
     accountSection.hidden = false;
+
+    showView("available-view");
 
     accountEmail.textContent = "Email: " + user.email;
 
@@ -139,7 +184,7 @@ async function displayAccount(user) {
 
 
 // ==========================================
-// 4. LOAD CURRENT SESSION
+// 5. LOAD CURRENT SESSION
 // ==========================================
 
 async function checkSession() {
@@ -166,7 +211,7 @@ async function checkSession() {
 
 
 // ==========================================
-// 5. REGISTER ACCOUNT
+// 6. REGISTER ACCOUNT
 // ==========================================
 
 registerForm.addEventListener("submit", async function(event) {
@@ -228,7 +273,7 @@ registerForm.addEventListener("submit", async function(event) {
 
 
 // ==========================================
-// 6. LOGIN
+// 7. LOGIN
 // ==========================================
 
 loginForm.addEventListener("submit", async function(event) {
@@ -266,7 +311,7 @@ loginForm.addEventListener("submit", async function(event) {
 
 
 // ==========================================
-// 7. LOGOUT
+// 8. LOGOUT
 // ==========================================
 
 logoutButton.addEventListener("click", async function() {
@@ -288,6 +333,11 @@ logoutButton.addEventListener("click", async function() {
     loginForm.reset();
     registerForm.reset();
 
+    tripList.replaceChildren();
+    myTripList.replaceChildren();
+
+    showMessage(bookingMessage, "", "");
+
     showMessage(
         loginMessage,
         "You have logged out successfully.",
@@ -298,7 +348,7 @@ logoutButton.addEventListener("click", async function() {
 
 
 // ==========================================
-// 8. CREATE AND EDIT A TRIP
+// 9. CREATE AND EDIT A TRIP
 // ==========================================
 
 tripForm.addEventListener("submit", async function(event) {
@@ -380,6 +430,8 @@ tripForm.addEventListener("submit", async function(event) {
         return;
     }
 
+    tripSubmitButton.disabled = true;
+
     // EDIT EXISTING TRIP
     if (editingTripId !== null) {
 
@@ -388,8 +440,6 @@ tripForm.addEventListener("submit", async function(event) {
             "Saving your trip changes...",
             ""
         );
-
-        tripSubmitButton.disabled = true;
 
         const { data, error } = await supabase.rpc(
             "update_trip",
@@ -428,6 +478,8 @@ tripForm.addEventListener("submit", async function(event) {
 
         await loadTrips();
 
+        showView("my-trips-view");
+
         return;
     }
 
@@ -437,8 +489,6 @@ tripForm.addEventListener("submit", async function(event) {
         "Publishing your trip...",
         ""
     );
-
-    tripSubmitButton.disabled = true;
 
     const { error } = await supabase
         .from("trips")
@@ -478,234 +528,321 @@ tripForm.addEventListener("submit", async function(event) {
 
     await loadTrips();
 
+    showView("my-trips-view");
+
 });
 
 
 // ==========================================
-// 9. LOAD AVAILABLE TRIPS
+// 10. CREATE TRIP CARD
+// ==========================================
+
+function createTripCard(trip, currentUserId, bookingMap) {
+
+    const card = document.createElement("article");
+    card.className = "trip-card";
+
+    const title = document.createElement("h3");
+
+    title.textContent =
+        trip.starting_location + " → " +
+        trip.destination;
+
+    const driver = document.createElement("p");
+
+    driver.textContent =
+        "Driver: " + trip.driver_name;
+
+    const date = document.createElement("p");
+
+    date.textContent =
+        "Date: " + trip.departure_date;
+
+    const time = document.createElement("p");
+
+    time.textContent =
+        "Departure: " +
+        String(trip.departure_time).slice(0, 5);
+
+    const seats = document.createElement("span");
+
+    seats.className = "trip-seats";
+
+    seats.textContent =
+        trip.available_seats + " of " +
+        trip.total_seats + " seats available";
+
+    const tripId = String(trip.id);
+
+    const isDriver =
+        trip.driver_id === currentUserId;
+
+    const bookingStatus =
+        bookingMap.get(tripId);
+
+    const availableSeats =
+        Number(trip.available_seats);
+
+    card.appendChild(title);
+    card.appendChild(driver);
+    card.appendChild(date);
+    card.appendChild(time);
+    card.appendChild(seats);
+
+    // DRIVER CONTROLS
+    if (isDriver) {
+
+        const driverLabel = document.createElement("p");
+
+        driverLabel.className = "trip-driver-label";
+        driverLabel.textContent = "Your Trip";
+
+        const editButton = document.createElement("button");
+
+        editButton.type = "button";
+        editButton.textContent = "Edit Trip";
+        editButton.className = "primary-button";
+
+        editButton.dataset.action = "edit";
+        editButton.dataset.tripId = tripId;
+
+        const cancelButton = document.createElement("button");
+
+        cancelButton.type = "button";
+        cancelButton.textContent = "Cancel Trip";
+        cancelButton.className = "secondary-button";
+
+        cancelButton.dataset.action = "cancel";
+        cancelButton.dataset.tripId = tripId;
+
+        card.appendChild(driverLabel);
+        card.appendChild(editButton);
+        card.appendChild(cancelButton);
+
+        return card;
+    }
+
+    // RIDER CONTROLS
+    const actionButton = document.createElement("button");
+
+    actionButton.type = "button";
+
+    if (bookingStatus) {
+
+        actionButton.textContent = "Leave Trip";
+
+        actionButton.dataset.action = "leave";
+        actionButton.dataset.tripId = tripId;
+
+        actionButton.className = "secondary-button";
+
+    } else if (availableSeats <= 0) {
+
+        actionButton.textContent = "Trip Full";
+        actionButton.disabled = true;
+
+        actionButton.className = "secondary-button";
+
+    } else {
+
+        actionButton.textContent = "Join Trip";
+
+        actionButton.dataset.action = "join";
+        actionButton.dataset.tripId = tripId;
+
+        actionButton.className = "primary-button";
+
+    }
+
+    card.appendChild(actionButton);
+
+    return card;
+}
+
+
+// ==========================================
+// 11. LOAD AVAILABLE TRIPS AND MY TRIPS
 // ==========================================
 
 async function loadTrips() {
 
+    if (isLoadingTrips) {
+        return;
+    }
+
+    isLoadingTrips = true;
+
     tripList.textContent = "Loading trips...";
+    myTripList.textContent = "Loading your trips...";
 
     showMessage(bookingMessage, "", "");
 
-    const { data: userData, error: userError } =
-        await supabase.auth.getUser();
+    try {
 
-    if (userError || !userData.user) {
+        const { data: userData, error: userError } =
+            await supabase.auth.getUser();
 
-        tripList.textContent =
-            "Please log in to view available trips.";
+        if (userError || !userData.user) {
 
-        return;
-    }
+            tripList.textContent =
+                "Please log in to view available trips.";
 
-    const currentUserId = userData.user.id;
-
-    // Get active trips from the database.
-    const { data, error } = await supabase
-        .rpc("get_available_trips");
-
-    if (error) {
-
-        console.error("Load trips error:", error);
-
-        tripList.textContent =
-            "Unable to load trips: " + error.message;
-
-        return;
-    }
-
-    tripList.replaceChildren();
-
-    if (!data || data.length === 0) {
-
-        const emptyMessage = document.createElement("p");
-
-        emptyMessage.className = "trip-empty";
-
-        emptyMessage.textContent =
-            "No trips have been published yet. Be the first to create one!";
-
-        tripList.appendChild(emptyMessage);
-
-        return;
-    }
-
-    // Get this student's active bookings.
-    const { data: bookings, error: bookingError } =
-        await supabase
-            .from("bookings")
-            .select("trip_id, status, created_at")
-            .eq("rider_id", currentUserId)
-            .in("status", ["pending", "confirmed"])
-            .order("created_at", { ascending: false });
-
-    if (bookingError) {
-
-        console.error("Booking lookup error:", bookingError);
-
-        tripList.textContent =
-            "Unable to check your bookings: " +
-            bookingError.message;
-
-        return;
-    }
-
-    const bookingMap = new Map();
-
-    bookings.forEach(function(booking) {
-
-        const tripId = String(booking.trip_id);
-
-        if (!bookingMap.has(tripId)) {
-
-            bookingMap.set(tripId, booking.status);
-
-        }
-
-    });
-
-    // Display each trip.
-    data.forEach(function(trip) {
-
-        const card = document.createElement("article");
-        card.className = "trip-card";
-
-        const title = document.createElement("h3");
-
-        title.textContent =
-            trip.starting_location + " → " +
-            trip.destination;
-
-        const driver = document.createElement("p");
-
-        driver.textContent =
-            "Driver: " + trip.driver_name;
-
-        const date = document.createElement("p");
-
-        date.textContent =
-            "Date: " + trip.departure_date;
-
-        const time = document.createElement("p");
-
-        time.textContent =
-            "Departure: " +
-            String(trip.departure_time).slice(0, 5);
-
-        const seats = document.createElement("span");
-
-        seats.className = "trip-seats";
-
-        seats.textContent =
-            trip.available_seats + " of " +
-            trip.total_seats + " seats available";
-
-        const tripId = String(trip.id);
-
-        const isDriver =
-            trip.driver_id === currentUserId;
-
-        const bookingStatus =
-            bookingMap.get(tripId);
-
-        const availableSeats =
-            Number(trip.available_seats);
-
-        // DRIVER CONTROLS
-        if (isDriver) {
-
-            const driverLabel = document.createElement("p");
-
-            driverLabel.className = "trip-driver-label";
-            driverLabel.textContent = "Your Trip";
-
-            const editButton = document.createElement("button");
-
-            editButton.type = "button";
-            editButton.textContent = "Edit Trip";
-            editButton.className = "primary-button";
-
-            editButton.dataset.action = "edit";
-            editButton.dataset.tripId = tripId;
-
-            const cancelButton = document.createElement("button");
-
-            cancelButton.type = "button";
-            cancelButton.textContent = "Cancel Trip";
-            cancelButton.className = "secondary-button";
-
-            cancelButton.dataset.action = "cancel";
-            cancelButton.dataset.tripId = tripId;
-
-            card.appendChild(title);
-            card.appendChild(driver);
-            card.appendChild(date);
-            card.appendChild(time);
-            card.appendChild(seats);
-            card.appendChild(driverLabel);
-            card.appendChild(editButton);
-            card.appendChild(cancelButton);
-
-            tripList.appendChild(card);
+            myTripList.textContent =
+                "Please log in to view your trips.";
 
             return;
         }
 
-        // RIDER CONTROLS
-        const actionButton = document.createElement("button");
+        const currentUserId = userData.user.id;
 
-        actionButton.type = "button";
+        // Get active trips from the database.
+        const { data, error } = await supabase
+            .rpc("get_available_trips");
 
-        if (bookingStatus) {
+        if (error) {
 
-            actionButton.textContent = "Leave Trip";
+            console.error("Load trips error:", error);
 
-            actionButton.dataset.action = "leave";
-            actionButton.dataset.tripId = tripId;
+            tripList.textContent =
+                "Unable to load trips: " + error.message;
 
-            actionButton.className = "secondary-button";
+            myTripList.textContent =
+                "Unable to load your trips.";
 
-        } else if (availableSeats <= 0) {
+            return;
+        }
 
-            actionButton.textContent = "Trip Full";
-            actionButton.disabled = true;
+        // Get this student's active bookings.
+        const { data: bookings, error: bookingError } =
+            await supabase
+                .from("bookings")
+                .select("trip_id, status, created_at")
+                .eq("rider_id", currentUserId)
+                .in("status", ["pending", "confirmed"])
+                .order("created_at", { ascending: false });
 
-            actionButton.className = "secondary-button";
+        if (bookingError) {
+
+            console.error("Booking lookup error:", bookingError);
+
+            tripList.textContent =
+                "Unable to check your bookings: " +
+                bookingError.message;
+
+            myTripList.textContent =
+                "Unable to load your trips.";
+
+            return;
+        }
+
+        // Store the student's active bookings.
+        const bookingMap = new Map();
+
+        (bookings || []).forEach(function(booking) {
+
+            const tripId = String(booking.trip_id);
+
+            if (!bookingMap.has(tripId)) {
+
+                bookingMap.set(tripId, booking.status);
+
+            }
+
+        });
+
+        const activeTrips = data || [];
+
+        // Separate trips created by the user from trips created by others.
+        const availableTrips = activeTrips.filter(function(trip) {
+
+            return trip.driver_id !== currentUserId;
+
+        });
+
+        // My Trips includes trips created and trips joined by the user.
+        const myTrips = activeTrips.filter(function(trip) {
+
+            return (
+                trip.driver_id === currentUserId ||
+                bookingMap.has(String(trip.id))
+            );
+
+        });
+
+        // Clear the lists.
+        tripList.replaceChildren();
+        myTripList.replaceChildren();
+
+        // AVAILABLE TRIPS
+        if (availableTrips.length === 0) {
+
+            const emptyMessage = document.createElement("p");
+
+            emptyMessage.className = "trip-empty";
+
+            emptyMessage.textContent =
+                "No available trips from other students right now.";
+
+            tripList.appendChild(emptyMessage);
 
         } else {
 
-            actionButton.textContent = "Join Trip";
+            availableTrips.forEach(function(trip) {
 
-            actionButton.dataset.action = "join";
-            actionButton.dataset.tripId = tripId;
+                const card = createTripCard(
+                    trip,
+                    currentUserId,
+                    bookingMap
+                );
 
-            actionButton.className = "primary-button";
+                tripList.appendChild(card);
+
+            });
 
         }
 
-        card.appendChild(title);
-        card.appendChild(driver);
-        card.appendChild(date);
-        card.appendChild(time);
-        card.appendChild(seats);
-        card.appendChild(actionButton);
+        // MY TRIPS
+        if (myTrips.length === 0) {
 
-        tripList.appendChild(card);
+            const emptyMessage = document.createElement("p");
 
-    });
+            emptyMessage.className = "trip-empty";
+
+            emptyMessage.textContent =
+                "You haven't created or joined any trips yet.";
+
+            myTripList.appendChild(emptyMessage);
+
+        } else {
+
+            myTrips.forEach(function(trip) {
+
+                const card = createTripCard(
+                    trip,
+                    currentUserId,
+                    bookingMap
+                );
+
+                myTripList.appendChild(card);
+
+            });
+
+        }
+
+    } finally {
+
+        isLoadingTrips = false;
+
+    }
 
 }
 
 
 // ==========================================
-// 10. TRIP AND BOOKING BUTTON ACTIONS
+// 12. TRIP AND BOOKING BUTTON ACTIONS
 // ==========================================
 
-tripList.addEventListener("click", async function(event) {
+async function handleTripListClick(event) {
 
     const button = event.target.closest("button[data-action]");
 
@@ -778,6 +915,9 @@ tripList.addEventListener("click", async function(event) {
             "Editing your trip. Update the information and save.",
             "success"
         );
+
+        // Automatically open the Create Trip section.
+        showView("create-view");
 
         tripForm.scrollIntoView({
             behavior: "smooth",
@@ -871,11 +1011,15 @@ tripList.addEventListener("click", async function(event) {
 
     await loadTrips();
 
-});
+}
+
+// Both trip lists use the same button handler.
+tripList.addEventListener("click", handleTripListClick);
+myTripList.addEventListener("click", handleTripListClick);
 
 
 // ==========================================
-// 11. CANCEL EDITING
+// 13. CANCEL EDITING
 // ==========================================
 
 cancelEditButton.addEventListener("click", function() {
@@ -886,14 +1030,14 @@ cancelEditButton.addEventListener("click", function() {
 
 
 // ==========================================
-// 12. REFRESH TRIPS
+// 14. REFRESH TRIPS
 // ==========================================
 
 refreshButton.addEventListener("click", loadTrips);
 
 
 // ==========================================
-// 13. AUTHENTICATION STATE CHANGES
+// 15. AUTHENTICATION STATE CHANGES
 // ==========================================
 
 supabase.auth.onAuthStateChange(function(event, session) {
@@ -914,6 +1058,7 @@ supabase.auth.onAuthStateChange(function(event, session) {
         accountSection.hidden = true;
 
         tripList.replaceChildren();
+        myTripList.replaceChildren();
 
         showMessage(bookingMessage, "", "");
 
@@ -923,7 +1068,7 @@ supabase.auth.onAuthStateChange(function(event, session) {
 
 
 // ==========================================
-// 14. START APPLICATION
+// 16. START APPLICATION
 // ==========================================
 
 checkSession();
