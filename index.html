@@ -104,19 +104,114 @@
 
         </section>
 
-        <!-- Logged-in Account Section -->
-        <section id="account-section" class="account-card" hidden>
+        
+<!-- Logged-in Account and Trip Management -->
+<section id="account-section" class="account-section" hidden>
 
+    <div class="account-header">
+        <div>
             <h2>Welcome to ClassRide!</h2>
-
             <p id="account-name"></p>
             <p id="account-email"></p>
+        </div>
 
-            <button id="logout-button" class="secondary-button">
-                Log Out
+        <button id="logout-button" class="secondary-button">
+            Log Out
+        </button>
+    </div>
+
+    <!-- Create Trip -->
+    <section class="trip-form-card">
+
+        <h2>Create a Trip</h2>
+        <p class="form-description">
+            Share your journey with other students.
+        </p>
+
+        <form id="trip-form">
+
+            <label for="starting-location">Starting Location</label>
+            <input
+                type="text"
+                id="starting-location"
+                placeholder="Example: Bambang"
+                required
+            >
+
+            <label for="destination">Destination</label>
+            <input
+                type="text"
+                id="destination"
+                placeholder="Example: Bayombong"
+                required
+            >
+
+            <div class="form-row">
+
+                <div>
+                    <label for="departure-date">Departure Date</label>
+                    <input
+                        type="date"
+                        id="departure-date"
+                        required
+                    >
+                </div>
+
+                <div>
+                    <label for="departure-time">Departure Time</label>
+                    <input
+                        type="time"
+                        id="departure-time"
+                        required
+                    >
+                </div>
+
+            </div>
+
+            <label for="total-seats">Total Available Seats</label>
+            <input
+                type="number"
+                id="total-seats"
+                min="1"
+                max="20"
+                placeholder="Example: 4"
+                required
+            >
+
+            <button type="submit" class="primary-button">
+                Publish Trip
             </button>
 
-        </section>
+        </form>
+
+        <p id="trip-message" class="message"></p>
+
+    </section>
+
+    <!-- Trip List -->
+    <section class="trip-list-section">
+
+        <div class="section-heading">
+            <div>
+                <h2>Available Trips</h2>
+                <p class="form-description">
+                    Find a journey that matches your destination.
+                </p>
+            </div>
+
+            <button id="refresh-trips" class="secondary-button">
+                Refresh
+            </button>
+        </div>
+
+        <div id="trip-list" class="trip-list">
+            <p>Loading trips...</p>
+        </div>
+
+    </section>
+
+</section>
+
 
         <footer>
             <p>ClassRide &copy; 2026</p>
