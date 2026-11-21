@@ -45,10 +45,10 @@ The application provides a simple and convenient way to organize shared journeys
 
 ### Using the installed App
 
-1.Find the installed app in your phone or laptop.
-2.Open the App.
-3.Register a new account or log in using your existing account.
-4.Enjoy the App.
+1. Find the installed app in your device.
+2. Open the app.
+3. Register a new account or log in using your existing account.
+4. Enjoy the app.
 
 ### Using the Live Website
 
